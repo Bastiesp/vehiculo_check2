@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe de Inspección Vehicular</title>
+    
+    <!-- CARGAR LA LIBRERÍA HTML2PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1, h2 { color: #333; }
+        
+        /* Estilos del Formulario */
+        .form-group {
+            margin-bottom: 15px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        label { font-weight: bold; display: block; margin-bottom: 5px; color: #444; }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        
+        /* Estilos de los Componentes */
+        .componente {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        hr { border: 0; border-top: 1px solid #eee; margin: 10px 0; }
+
+        /* Botones */
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* Estilos del Informe (PDF) */
+        #informe {
+            background: white;
+            padding: 40px;
+            margin-top: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            /* Importante: Asegurar que el fondo sea blanco para el PDF */
+            color: #000; 
+        }
+        .oculto { display: none; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th { background-color: #f8f9fa; }
+
+        /* Colores de estado */
+        .estado.malo { color: #dc3545; font-weight: bold; }
+        .estado.regular { color: #d39e00; font-weight: bold; } /* Un amarillo más oscuro para leer en PDF */
+        .estado.bueno { color: #28a745; font-weight: bold; }
+        .estado.excelente { color: #007bff; font-weight: bold; }
+        
+        .estado-final { font-size: 1.2em; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>🔧 Sistema de Inspección Vehicular</h1>
+
+    <!-- Formulario de Entrada -->
+    <form id="informeForm">
+        <div class="form-group">
+            <h2>Datos Generales</h2>
+            <label>Cliente:</label>
+            <input type="text" id="cliente" placeholder="Nombre del cliente" required>
+            
+            <label>Vehículo:</label>
+            <input type="text" id="vehiculo" placeholder="Marca y modelo" required>
+            
+            <label>Patente:</label>
+            <input type="text" id="patente" placeholder="Patente" required>
+            
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label>Fecha:</label>
+                    <input type="date" id="fecha" required>
+                </div>
+                <div style="flex: 1;">
+                    <label>Kilometraje:</label>
+                    <input type="number" id="km" placeholder="Ej: 50000" required>
+                </div>
+            </div>
+        </div>
+
+        <div id="componentes"></div>
+
+        <button type="submit">Generar Informe</button>
+    </form>
+
+    <!-- Vista Previa del Informe (Oculta hasta generar) -->
+    <div id="informe" class="oculto">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1>INFORME DE INSPECCIÓN</h1>
+            <p>Reporte Técnico Oficial</p>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #ddd;">
+            <p><strong>Cliente:</strong> <span id="iCliente"></span></p>
+            <p><strong>Vehículo:</strong> <span id="iVehiculo"></span></p>
+            <p><strong>Patente:</strong> <span id="iPatente"></span></p>
+            <p><strong>Fecha:</strong> <span id="iFecha"></span></p>
+            <p><strong>Kilometraje:</strong> <span id="iKM"></span></p>
+        </div>
+
+        <h3>Estado General del Vehículo: <span id="estadoFinal"></span></h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Componente</th>
+                    <th>Estado</th>
+                    <th>Observación</th>
+                </tr>
+            </thead>
+            <tbody id="tablaComponentes">
+                <!-- Las filas se insertan aquí con JS -->
+            </tbody>
+        </table>
+
+        <div style="margin-top: 40px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px;">
+            <p>Inspección realizada conforme a protocolos de seguridad.</p>
+        </div>
+    </div>
+
+    <button id="btnDescargar" class="oculto" onclick="exportarPDF()" style="background-color: #28a745;">📥 Descargar PDF</button>
+
+    <script>
+        const componentes = [
+            "Motor", "Sistema de frenos", "Neumáticos", "Suspensión",
+            "Luces", "Dirección", "Escape", "Refrigeración"
+        ];
+
+        // Inicializar el formulario al cargar
+        window.onload = () => {
+            // Poner fecha de hoy por defecto
+            document.getElementById("fecha").valueAsDate = new Date();
+
+            const contenedor = document.getElementById("componentes");
+            componentes.forEach((nombre, index) => {
+                const div = document.createElement("div");
+                div.className = "componente";
+                div.innerHTML = `
+                    <label>${nombre}</label>
+                    <select id="estado-${index}" required>
+                        <option value="">Seleccionar estado...</option>
+                        <option value="malo">Malo ❌</option>
+                        <option value="regular">Regular ⚠️</option>
+                        <option value="bueno">Bueno ✅</option>
+                        <option value="excelente">Excelente ✅✅</option>
+                    </select>
+                    <input type="text" id="obs-${index}" placeholder="Observación (opcional)" />
+                `;
+                contenedor.appendChild(div);
+            });
+        };
+
+        function estadoIcono(estado) {
+            switch (estado) {
+                case "malo": return "❌ Malo";
+                case "regular": return "⚠️ Regular";
+                case "bueno": return "✅ Bueno";
+                case "excelente": return "✅✅ Excelente";
+                default: return estado;
+            }
+        }
+
+        document.getElementById("informeForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            // 1. Llenar datos generales
+            document.getElementById("iCliente").textContent = document.getElementById("cliente").value;
+            document.getElementById("iVehiculo").textContent = document.getElementById("vehiculo").value;
+            document.getElementById("iPatente").textContent = document.getElementById("patente").value;
+            document.getElementById("iFecha").textContent = document.getElementById("fecha").value;
+            document.getElementById("iKM").textContent = document.getElementById("km").value + " km";
+
+            // 2. Generar tabla de componentes
+            const tbody = document.getElementById("tablaComponentes");
+            tbody.innerHTML = "";
+            let puntajeTotal = 0;
+
+            componentes.forEach((nombre, index) => {
+                const estado = document.getElementById(`estado-${index}`).value;
+                const observacion = document.getElementById(`obs-${index}`).value || "-";
+
+                const puntajes = { malo: 1, regular: 2, bueno: 3, excelente: 4 };
+                puntajeTotal += puntajes[estado] || 0;
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${nombre}</td>
+                    <td class="estado ${estado}">${estadoIcono(estado)}</td>
+                    <td>${observacion}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 3. Calcular estado final
+            const promedio = puntajeTotal / componentes.length;
+            let final = "bueno";
+            if (promedio <= 1.5) final = "malo";
+            else if (promedio <= 2.5) final = "regular";
+            else if (promedio <= 3.5) final = "bueno";
+            else final = "excelente";
+
+            const estadoFinalSpan = document.getElementById("estadoFinal");
+            estadoFinalSpan.textContent = estadoIcono(final);
+            estadoFinalSpan.className = "estado-final estado " + final;
+
+            // 4. Mostrar informe y botón de descarga
+            document.getElementById("informe").classList.remove("oculto");
+            document.getElementById("btnDescargar").classList.remove("oculto");
+            
+            // Scroll suave hacia el informe
+            document.getElementById("informe").scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // FUNCIÓN CORREGIDA PARA EVITAR PDF EN BLANCO
+        function exportarPDF() {
+            const elemento = document.getElementById("informe");
+            const btn = document.getElementById("btnDescargar");
+            
+            // Feedback visual en el botón
+            const textoOriginal = btn.innerText;
+            btn.innerText = "Generando PDF, espera...";
+            btn.disabled = true;
+
+            if (typeof html2pdf === 'undefined') {
+                alert("Error: La librería html2pdf no se cargó correctamente. Revisa tu conexión a internet.");
+                btn.innerText = textoOriginal;
+                btn.disabled = false;
+                return;
+            }
+
+            const opciones = {
+                margin:       10,
+                filename:     `informe-${document.getElementById("patente").value}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { 
+                    scale: 1.5,          // Reducido de 2 a 1.5 para evitar fallos de memoria
+                    useCORS: true, 
+                    logging: false, 
+                    scrollY: 0,          // CLAVE: Ignora la posición del scroll actual
+                    windowWidth: document.documentElement.scrollWidth // Asegura ancho completo
+                },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Forzar un "reflow" (recálculo de diseño) antes de capturar
+            // Esto asegura que el navegador haya pintado el elemento antes de capturarlo
+            elemento.offsetHeight; 
+
+            setTimeout(() => {
+                html2pdf().set(opciones).from(elemento).save()
+                    .then(() => {
+                        console.log("PDF generado con éxito");
+                        btn.innerText = textoOriginal;
+                        btn.disabled = false;
+                    })
+                    .catch(err => {
+                        console.error("Error al generar PDF:", err);
+                        alert("Hubo un error al generar el PDF. Intenta de nuevo.");
+                        btn.innerText = textoOriginal;
+                        btn.disabled = false;
+                    });
+            }, 500); // Aumentado a 500ms para dar más tiempo al renderizado
+        }
+    </script>
+</body>
+</html>
